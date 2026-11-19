@@ -1,0 +1,109 @@
+# AI SDLC factory - run configuration
+# Install at: .github/sdlc/config.yaml
+# Read by the Orchestrator at the start of every run.
+
+models:                                   # documents the model in each agent file - change both together
+  orchestrator: "Claude Sonnet 5.5 (copilot)"
+  planner: "Claude Sonnet 5.5 (copilot)"
+  repo_scout: "Claude Haiku 5.5 (copilot)"
+  researcher: "Claude Haiku 5.5 (copilot)"
+  jira: "Claude Haiku 5.5 (copilot)"
+  implementer:
+    low: "Claude Haiku 5.5 (copilot)"
+    medium: "Claude Haiku 5.5 (copilot)"
+    high: "Claude Sonnet 5.5 (copilot)"
+  qa:
+    low: "Claude Haiku 5.5 (copilot)"
+    medium: "Claude Haiku 5.5 (copilot)"   # change to a mid model if one is available
+    high: "Claude Sonnet 5.5 (copilot)"
+
+# Tier variants are separate agents; the Orchestrator starts them directly (flat, no lane lead).
+tier_agents:
+  enabled: true
+  pattern: "<Role>-<Lane>-<Tier>"         # e.g. Impl-Python-High, QA-React-Low
+  lanes: ["Python", "Postgres", "React"]
+  tiers: ["Low", "Medium", "High"]        # "Complex" is not a tier: it goes back to the Planner to split
+  complex_score: 9
+
+gates:
+  plan_approval: manual                   # manual | auto
+  final_review: manual                    # manual | auto
+
+limits:
+  max_planning_rounds: 3
+  max_rework_per_task: 2
+  max_delegations_per_run: 40
+  max_files_per_task: 8
+  planner_max_questions: 7               # questions per round
+  planner_max_file_reads: 15             # files the Planner reads itself, after Repo-Scout
+  repo_map_max_lines: 300
+
+# Plan A switch. Keep false until the resume test (spikes/agent-resume-test) passes.
+agent_resume:
+  enabled: false
+
+git:
+  branch_prefix: "sdlc/"
+  protected_branches: ["main", "master", "develop", "release/*"]
+  allowed_commands:
+    - "git status"
+    - "git checkout -b"
+    - "git switch"
+    - "git add"
+    - "git commit"
+    - "git push -u origin"
+    - "git diff --stat"
+  never: ["git push --force", "git reset --hard", "git rebase", "git clean"]
+
+jira:
+  # Credentials come only from environment variables: JIRA_BASE_URL, JIRA_USER, JIRA_API_TOKEN,
+  # JIRA_AUTH_TYPE (basic | bearer for Data Center PAT), JIRA_API_VERSION (2 | 3).
+  allowed_projects: ["PROJ"]              # writes only in these projects
+  status:                                 # names as they appear in your Jira workflow
+    start: "In Progress"                  # after Gate 1
+    review: "In Review"                   # after Gate 2 and push
+    done: "Done"                          # sub-task finished (QA PASS)
+    blocked: "Blocked"                    # sub-task stopped at the rework limit (if the workflow has it)
+  sync_subtasks: false                    # true = mirror plan tasks as Jira sub-tasks
+  max_subtasks: 15                        # above this, sync-plan asks for confirmation
+  ac_field: ""                            # custom field holding acceptance criteria, if not in the description
+  fields:                                 # site-specific custom field names (find with: jira_cli.py fields --match <word>)
+    story_points: "Story Points"
+  log_work: false                         # true = log the run duration as work on the story
+
+research:
+  web_search: false                       # true only if Copilot web search is available and allowed
+  allowed_domains:                        # public sites the Researcher may fetch (subdomains included)
+    - docs.python.org
+    - fastapi.tiangolo.com
+    - docs.pydantic.dev
+    - docs.sqlalchemy.org
+    - alembic.sqlalchemy.org
+    - www.postgresql.org
+    - react.dev
+    - www.typescriptlang.org
+    - vitest.dev
+    - testing-library.com
+    - developer.mozilla.org
+    - owasp.org
+    - nvd.nist.gov
+    - github.com                          # advisories and official issue trackers
+    - osv.dev
+    - pypi.org
+    - www.npmjs.com
+  internal:
+    confluence_spaces: []                 # e.g. ["ENG", "SEC"]; needs CONFLUENCE_* environment variables
+    paths: ["docs/", "CONTRIBUTING.md"]   # internal docs inside the repo or a mounted docs repo
+    approved_tech_page: ""                # Confluence page id or path of the approved-technology list
+  standards:
+    sources: []                           # Confluence page ids or repo paths of coding / security standards
+    refresh_days: 30
+    auto_build: false                     # true = Orchestrator builds the pack at Phase 0 when missing
+  max_questions_per_round: 5
+  max_fetches_per_question: 6
+  cache_days: 30
+  dependency_check_per_run: false         # true = vulnerability check before planning on existing repos
+
+paths:
+  runs_dir: ".sdlc/runs"
+  repo_map: ".sdlc/repo-map.md"           # kept between runs; commit it so the team shares it

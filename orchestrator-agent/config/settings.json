@@ -1,0 +1,56 @@
+// Merge into the workspace .vscode/settings.json
+{
+  // Lets custom agents (Planner, Impl-*, QA-*) run as subagents.
+  "chat.customAgentInSubagent.enabled": true,
+
+  // Needed so the Planner can start Repo-Scout. Only agents with the 'agent' tool and a
+  // non-empty 'agents' list can delegate: in this factory that is the Orchestrator and the Planner.
+  // Every other worker has no 'agent' tool, so the hub-and-spoke shape is kept.
+  "chat.subagents.allowInvocationsFromSubagents": true,
+
+  // Shows subagent credit usage in chat. Needed for the benchmark.
+  "chat.subagents.showCreditUsage": true,
+
+  // Each agent uses its configured model, so benchmark runs are repeatable.
+  "chat.subagents.defaultToAuto": false,
+
+  // Terminal commands that run without a confirmation prompt, so parallel implementers do not stall.
+  // true = run without asking. false = always ask (it does not block the command).
+  // Regex rules are written between slashes. Adjust to your repo's commands.
+  "chat.tools.terminal.autoApprove": {
+    // Python checks
+    "/^(python -m )?pytest\\b/": true,
+    "/^(python -m )?ruff (check|format)\\b/": true,
+    "/^(python -m )?mypy\\b/": true,
+    // Alembic (local database only)
+    "/^alembic (upgrade|downgrade|heads|current|history)\\b/": true,
+    "/^alembic revision -m\\b/": true,
+    // Frontend checks
+    "/^npm (test|run (lint|test|typecheck|format:check))\\b/": true,
+    "/^npx (vitest run|tsc --noEmit|eslint|prettier --check|prettier --write)\\b/": true,
+    // Jira helper: read commands run without asking; write commands (create, update, comment,
+    // transition, assign, link, sprint-move, attach, worklog, bulk-create) still ask unless --dry-run.
+    "/^python3? \\.github\\/skills\\/jira-operations\\/scripts\\/jira_cli\\.py (whoami|get|search|transitions|comment-list|link-types|fields|create-meta|sprints)\\b/": true,
+    "/^python3? \\.github\\/skills\\/jira-operations\\/scripts\\/jira_cli\\.py --dry-run\\b/": true,
+    // Research helper: every command is read-only.
+    "/^python3? \\.github\\/skills\\/research-method\\/scripts\\/research_cli\\.py\\b/": true,
+    // Read-only git
+    "/^git (status|diff|rev-parse|ls-files|log -1)\\b/": true,
+    // Always ask
+    "git push": false,
+    "git reset": false,
+    "git rebase": false,
+    "git clean": false,
+    "rm": false,
+    "pip install": false,
+    "npm install": false,
+    "curl": false,
+    "docker": false
+  },
+
+  // Edits that always need approval, whoever makes them.
+  "chat.tools.edits.autoApprove": {
+    "**/.env*": false,
+    "**/.github/**": false
+  }
+}
